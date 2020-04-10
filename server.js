@@ -83,6 +83,8 @@ function Point(x, y, u, r, g, b) {
 
 myFunction();
 
+clearAll();
+
 router.get("/", function(req, res){
     res.render("index");
 });
