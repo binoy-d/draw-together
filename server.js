@@ -64,6 +64,12 @@ function myFunction() {
     myFunction();
   }, 100);
 }
+function clearAll() {
+    setTimeout(function() {
+      cursors.cursors = [];
+      clearAll();
+    }, 147483647);
+  }
 
 
 function Point(x, y, u, r, g, b) {
