@@ -3,9 +3,9 @@
 
 <head>
   <title>Bubbles Together!</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/0.5.11/p5.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/0.5.11/addons/p5.dom.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.0.3/socket.io.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
   
   <style>
     body {
@@ -13,16 +13,30 @@
       margin: 0;
       background-color: black;
       text-align: center;
+      overflow: hidden; /* Prevent scrollbars */
     }
-    a{
-      color:white;
+    a {
+      color: white;
+      position: absolute;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1000;
+      text-decoration: none;
+      font-family: Arial, sans-serif;
+      font-size: 14px;
     }
-
+    a:hover {
+      color: #ccc;
+    }
+    canvas {
+      display: block;
+    }
   </style>
 </head>
 
 <body>
-  <script src = "/client.js"></script>
+  <script src="/client.js"></script>
   <a href="https://www.binoy.co">Visit my website!</a>
 </body>
 

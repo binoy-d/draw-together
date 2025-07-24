@@ -1,107 +1,159 @@
 var user = {
-    'num': 0,
-    'r':140,
-    'g':140,
-    'b':140
-  };
+    'id': null,
+    'r': 140,
+    'g': 140,
+    'b': 140
+};
 
-  var objects = {
-    'objects': []
-  };
-  var cursors = {
-    'cursors': []
-  };
-  var socket = io();
+var particles = [];
+var cursors = [];
+var socket = io();
+var lastMouseUpdate = 0;
+var UPDATE_INTERVAL = 16; // ~60 FPS
+var maxParticles = 500; // Limit particles for performance
+var userCount = 0; // Track total number of users
 
-  socket.emit('clientEvent', user);
+socket.emit('clientEvent', user);
 
+socket.on('setusernum', function(data) {
+    user.id = data.userId;
+    console.log('Assigned user ID:', user.id);
+});
 
-  socket.on('setusernum', function(data) {//when usernum is assigned...
-    console.log(data.totalusers);
-    user.num = data.totalusers;//keep usernum
-  });
-  
-  socket.on('colorset',function(data){//when colors come in
-    user.r = data.r;//keep colors
+socket.on('colorset', function(data) {
+    user.r = data.r;
     user.g = data.g;
     user.b = data.b;
-    console.log("r: "+user.r+" g: "+user.g+" b: "+user.b);
-  });
+    console.log("Color set - r:", user.r, "g:", user.g, "b:", user.b);
+});
 
+// Move socket listener outside of draw loop for better performance
+socket.on('broadcast', function(data) {
+    if (data && data.cursors) {
+        cursors = data.cursors;
+        // Update user count based on active cursors
+        userCount = cursors.length;
+    }
+});
 
-  var b;
-  
-  function setup() {createCanvas(windowWidth, windowHeight);angleMode(DEGREES);}
+socket.on('userCount', function(data) {
+    if (data && data.count !== undefined) {
+        userCount = data.count;
+    }
+});
 
-  function draw() {
+function setup() {
+    createCanvas(windowWidth, windowHeight);
+    angleMode(DEGREES);
+}
+
+function draw() {
     background(0);
-    socket.on('broadcast', function(data) {//when cursor data comes in
-      cursors.cursors = data.cursors;//keep cursor data
-    });
     
-    if (cursors.cursors.length >= 1) {//if there are cursors
-      for (var i = 0; i < cursors.cursors.length; i++) {//loop through every cursor
-        if (cursors.cursors[i] != null) {//if it it exists
-          if (cursors.cursors[i].usernum != user.num) {//and if it is not the user's cursor
-            //generate a particle in the cursor's color
-            
-            objects.objects.push(new Particle(cursors.cursors[i].x, cursors.cursors[i].y,cursors.cursors[i].r,cursors.cursors[i].g,cursors.cursors[i].b));
-          }
-          else {//if it is the user's cursor
-            //dont do anythung
-          }
+    // Display user count in top-left corner
+    displayUserCount();
+    
+    // Process other users' cursors
+    for (var i = 0; i < cursors.length; i++) {
+        var cursor = cursors[i];
+        if (cursor && cursor.userId !== user.id) {
+            // Create particles less frequently for better performance
+            if (frameCount % 2 === 0) { // Every other frame
+                addParticle(cursor.x, cursor.y, cursor.r, cursor.g, cursor.b);
+            }
         }
-      }
     }
 
-    if (mouseIsPressed) {//if the mouse is presed
-      socket.emit('cursor', new Point(mouseX, mouseY));//send the location of the cursor to the server
-      objects.objects.push(new Particle(mouseX,mouseY,user.r,user.g,user.b));
-    }else{
-      socket.emit('removeCursor', new Point(mouseX, mouseY));//send the location of the cursor to the server
+    // Handle mouse input with throttling
+    var now = millis();
+    if (mouseIsPressed) {
+        if (now - lastMouseUpdate > UPDATE_INTERVAL) {
+            socket.emit('cursor', { x: mouseX, y: mouseY });
+            lastMouseUpdate = now;
+        }
+        // Always create particles when mouse is pressed (not throttled)
+        addParticle(mouseX, mouseY, user.r, user.g, user.b);
+    } else {
+        if (now - lastMouseUpdate > UPDATE_INTERVAL) {
+            socket.emit('removeCursor', { x: mouseX, y: mouseY });
+            lastMouseUpdate = now;
+        }
     }
 
-    for (var i = 0; i < objects.objects.length; i++) {//loop through every particle in the objects array
-      b = objects.objects[i];
-      b.move();//move it
-      b.display();//render it
-      if (b.age >= 105) {//if it is old...
-        objects.objects.splice(i, 1);//murder it
-      }
-    }
-  }//end of 'game loop'
+    // Update and render particles efficiently
+    updateParticles();
+}
 
-  function Particle(x, y,r,g,b) {//All particles have a location, color, angle, diameter, and speed
+function addParticle(x, y, r, g, b) {
+    // Limit total particles to prevent memory issues
+    if (particles.length < maxParticles) {
+        particles.push(new Particle(x, y, r, g, b));
+    }
+}
+
+function updateParticles() {
+    for (var i = particles.length - 1; i >= 0; i--) {
+        var particle = particles[i];
+        particle.move();
+        particle.display();
+        
+        // Longer lifespan for slower dispersion
+        if (particle.age >= 150) { // Increased from 105 to 150
+            particles.splice(i, 1);
+        }
+    }
+}
+
+function displayUserCount() {
+    // Clean, minimal user count display
+    fill(255, 255, 255, 180); // Semi-transparent white
+    noStroke();
+    textAlign(LEFT, TOP);
+    textSize(16);
+    textFont('Arial');
+    
+    var padding = 15;
+    var userText = userCount + (userCount === 1 ? ' user online' : ' users online');
+    
+    // Simple background rectangle
+    var textW = textWidth(userText);
+    fill(0, 0, 0, 100); // Semi-transparent black background
+    rect(padding - 5, padding - 5, textW + 10, 25);
+    
+    // Display text
+    fill(255, 255, 255, 200); // Bright white text
+    text(userText, padding, padding);
+}
+
+function Particle(x, y, r, g, b) {
     this.r = r;
     this.g = g;
     this.b = b;
     this.x = x;
     this.y = y;
-    this.type = "particle";
     this.age = 0;
-    this.diameter = random(10, 30);
+    this.diameter = random(8, 25);
     this.angle = random(0, 360);
-    this.speed = random(0.1, 1);
-  }
+    this.speed = random(0.5, 1.2); // Good balance of slower than original but still visible
+    this.vx = sin(this.angle) * this.speed; // Pre-calculate velocity
+    this.vy = cos(this.angle) * this.speed;
+}
 
-  Particle.prototype.display = function() {//All particles can be rendered
+Particle.prototype.display = function() {
     noStroke();
-    fill(this.r,this.g,this.b, 255 - (this.age * 2));//The color is from the rgb values and the alpha is from the age
-    ellipse(this.x, this.y, this.diameter, this.diameter);//draw a circle of the right diameter
-  }
-  Particle.prototype.move = function() {//All particles can move
-    this.age++;//All particles get old
-    this.x += sin(this.angle) * this.speed;
-    this.y += cos(this.angle) * this.speed;
-  }
+    var alpha = max(0, 255 - (this.age * 1.5)); // Slower fade but not too slow
+    fill(this.r, this.g, this.b, alpha);
+    ellipse(this.x, this.y, this.diameter, this.diameter);
+}
 
+Particle.prototype.move = function() {
+    this.age++;
+    this.x += this.vx; // Use pre-calculated velocity
+    this.y += this.vy;
+}
 
-  function Point(x, y) {//Points are cursors. They carry the user id, location, and user color
-    this.x = x;
-    this.y = y;
-    this.r = user.r;
-    this.g = user.g;
-    this.b = user.b;
-    this.usernum = user.num;
-  }
+// Window resize handler for responsiveness
+function windowResized() {
+    resizeCanvas(windowWidth, windowHeight);
+}
 

@@ -1,0 +1,19 @@
+services:
+  draw-together:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    restart: unless-stopped
+    # Uncomment the volumes section below for development with live reload
+    # volumes:
+    #   - .:/app
+    #   - /app/node_modules
+    networks:
+      - draw-together-network
+
+networks:
+  draw-together-network:
+    driver: bridge
